@@ -1,14 +1,14 @@
 use chrono::Local;
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use world_cup_tui::model::{CardColor, KeyEvent, KeyEventKind, Match, MatchStatus};
 
-use crate::app::{scroll_window, timeline_rows, App, Column, TimelineMode};
+use crate::app::{App, Column, TimelineMode, scroll_window, timeline_rows};
 use crate::ui::{team_slot, theme};
 
 pub fn render(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -109,7 +109,10 @@ fn render_timeline(frame: &mut Frame, app: &mut App, m: &Match, area: Rect) {
     app.timeline_max_offset = total.saturating_sub(visible);
     // Clamp persistente: si el offset quedó fuera de rango (lista o panel
     // cambiaron), vuelve al modo seguir-en-vivo.
-    if app.timeline_scroll.is_some_and(|s| s >= app.timeline_max_offset) {
+    if app
+        .timeline_scroll
+        .is_some_and(|s| s >= app.timeline_max_offset)
+    {
         app.timeline_scroll = None;
     }
     let (start, above, below) = scroll_window(total, visible, app.timeline_scroll);
@@ -123,8 +126,9 @@ fn render_timeline(frame: &mut Frame, app: &mut App, m: &Match, area: Rect) {
         .border_style(theme::border())
         .title_top(Line::from(Span::styled(title, theme::panel_title())).left_aligned());
     if above > 0 {
-        block = block
-            .title_top(Line::from(Span::styled(format!("▲ {above} "), theme::refresh())).right_aligned());
+        block = block.title_top(
+            Line::from(Span::styled(format!("▲ {above} "), theme::refresh())).right_aligned(),
+        );
     }
     if below > 0 {
         block = block.title_bottom(
@@ -145,7 +149,14 @@ fn render_timeline(frame: &mut Frame, app: &mut App, m: &Match, area: Rect) {
         lines.push(Line::from(Span::styled(msg, theme::muted())).alignment(Alignment::Center));
     } else {
         for &(i, col) in rows.iter().skip(start).take(visible) {
-            lines.push(event_row(&app.events[i], col, app.emoji, col_w, minute_w, inner_w));
+            lines.push(event_row(
+                &app.events[i],
+                col,
+                app.emoji,
+                col_w,
+                minute_w,
+                inner_w,
+            ));
         }
     }
     frame.render_widget(Paragraph::new(lines).block(block), area);
@@ -153,8 +164,16 @@ fn render_timeline(frame: &mut Frame, app: &mut App, m: &Match, area: Rect) {
 
 /// Fila fija con la identidad de cada equipo sobre su columna.
 fn columns_header(m: &Match, emoji: bool, col_w: usize, minute_w: usize) -> Line<'static> {
-    let home = format!("{} {}", team_slot(&m.home, emoji), m.home.name.to_uppercase());
-    let away = format!("{} {}", m.away.name.to_uppercase(), team_slot(&m.away, emoji));
+    let home = format!(
+        "{} {}",
+        team_slot(&m.home, emoji),
+        m.home.name.to_uppercase()
+    );
+    let away = format!(
+        "{} {}",
+        m.away.name.to_uppercase(),
+        team_slot(&m.away, emoji)
+    );
     let style = theme::base().add_modifier(Modifier::BOLD);
     Line::from(vec![
         Span::styled(pad_to(fit(&home, col_w), col_w), style),

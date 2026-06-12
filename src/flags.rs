@@ -151,7 +151,12 @@ mod tests {
     fn policy_precedence() {
         // Override CLI gana a todo.
         assert!(decide_emoji(Some(true), Some("0"), None, None));
-        assert!(!decide_emoji(Some(false), Some("1"), Some("iTerm.app"), None));
+        assert!(!decide_emoji(
+            Some(false),
+            Some("1"),
+            Some("iTerm.app"),
+            None
+        ));
         // Env gana a la allowlist.
         assert!(decide_emoji(None, Some("1"), None, None));
         assert!(!decide_emoji(None, Some("0"), Some("iTerm.app"), None));
@@ -159,7 +164,12 @@ mod tests {
         assert!(decide_emoji(None, None, Some("ghostty"), None));
         assert!(decide_emoji(None, None, None, Some("xterm-kitty")));
         // Default conservador: off.
-        assert!(!decide_emoji(None, None, Some("vscode"), Some("xterm-256color")));
+        assert!(!decide_emoji(
+            None,
+            None,
+            Some("vscode"),
+            Some("xterm-256color")
+        ));
         assert!(!decide_emoji(None, None, None, None));
     }
 }

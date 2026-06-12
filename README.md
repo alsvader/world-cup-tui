@@ -1,50 +1,105 @@
 # world-cup-tui
 
-TUI en Rust para seguir los partidos del Mundial 2026 en vivo desde la terminal: marcador, minuto, goles (autor y momento), tarjetas y datos del partido, con actualización automática.
+[![CI](https://github.com/OWNER/world-cup-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/world-cup-tui/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
 
-```
- WORLD CUP TUI                                                12 JUN 2026 · 13:45
-┌ ● EN VIVO ─────────────────────────────────────────────────── [1 ACTIVOS] ┐
-│ 62'        CANADA 🇨🇦   [ 1 - 0 ]  🇧🇦 BOSNIA-HERZEGOVINA   BMO Field      │
-└────────────────────────────────────────────────────────────────────────────┘
-┌ ○ PRÓXIMOS ─────────────────────────────────────────────── [HOY · UTC-6] ┐
-│ HORA     PARTIDO                              SEDE                        │
-│ 19:00    UNITED STATES vs PARAGUAY            SoFi Stadium · Inglewood    │
-└────────────────────────────────────────────────────────────────────────────┘
- [Q] SALIR · [R] REFRESCAR · [J/K] NAVEGAR · [ENTER] DETALLE
-```
+A terminal UI for following the **FIFA World Cup 2026** live: scores, match clock, goal scorers, yellow/red cards and substitutions — auto-refreshing while you work, in a Bloomberg-terminal-inspired dashboard.
 
-## Uso
+![demo](assets/demo.gif)
+
+## Features
+
+- **Live match tracking** — score and match clock update automatically (~30s for the dashboard, ~15s for the match you have open).
+- **Three-panel dashboard** — LIVE (with active-match counter), UPCOMING (kickoff times in *your* timezone, venue and city) and FINISHED (including yesterday's results).
+- **Match centre detail view** — goals and cards in two columns, one per team, minute in the middle, in shared chronological order. Press `t` to see the full event feed (substitutions, delays, halftime).
+- **Sticky-bottom scrolling** — follow a live match pinned to the latest event, or scroll up through history without being dragged down when new events arrive.
+- **Country flags with progressive enhancement** — FIFA trigrams (`MEX`, `BRA`) everywhere as the universal base; flag emoji 🇲🇽 and event icons ⚽🟨🟥 automatically enabled on terminals known to render them well.
+- **Resilient by design** — network errors never crash or blank the screen: the last good data stays visible with its timestamp, and the app reconnects by itself.
+
+| Dashboard | Match detail |
+|---|---|
+| ![dashboard](assets/dashboard.png) | ![detail](assets/detail.png) |
+
+*Screenshots show the universal text mode (works on any terminal). On iTerm2, kitty, Ghostty, WezTerm or Apple Terminal you get flag emoji and event icons automatically.*
+
+## Installation
+
+Requires [Rust](https://rustup.rs) (stable). A truecolor terminal is recommended for the exact design-system palette; any terminal works.
 
 ```bash
+git clone https://github.com/OWNER/world-cup-tui.git
+cd world-cup-tui
 cargo build --release
 ./target/release/world-cup-tui
 ```
 
-| Tecla | Acción |
+## Usage
+
+| Key | Action |
 |---|---|
-| `↑↓` / `j k` | Mover selección |
-| `Enter` | Detalle del partido (goles, tarjetas, cambios en vivo) |
-| `Esc` | Volver a la lista |
-| `r` | Refrescar ahora |
-| `q` | Salir |
+| `↑↓` / `j k` | Move selection (list) / scroll timeline (detail) |
+| `Enter` | Open match detail |
+| `t` | Toggle timeline: goals & cards ⇄ full event feed |
+| `Esc` | Back to the dashboard |
+| `r` | Refresh now |
+| `q` | Quit |
 
-## Banderas y emoji
+The interface language is Spanish — fitting, for a World Cup hosted in Mexico, the US and Canada.
 
-El layout base usa trigramas FIFA (`MEX`, `BRA`) y marcadores de texto — se ve perfecto en **cualquier** terminal. Las banderas emoji (🇲🇽) y los iconos (⚽🟨🟥) se activan automáticamente solo en terminales que las renderizan bien (iTerm2, kitty, Ghostty, WezTerm, Apple Terminal).
+### Flags & emoji
 
-Override manual, que siempre gana a la detección:
+The base layout uses FIFA trigrams and colored text markers, guaranteed to align on **any** terminal. Flag emoji and event icons are enabled automatically when `TERM_PROGRAM`/`TERM` identifies a terminal that renders them correctly. Manual override always wins:
 
 ```bash
-world-cup-tui --flags      # forzar banderas/emoji
-world-cup-tui --no-flags   # forzar modo texto
-WCTUI_FLAGS=1|0            # equivalente por variable de entorno
+world-cup-tui --flags      # force emoji on
+world-cup-tui --no-flags   # force universal text mode
+WCTUI_FLAGS=1|0            # same, via environment
 ```
 
-Inglaterra, Escocia y Gales siempre usan trigrama: sus banderas emoji ("tag sequences") se renderizan mal en demasiados terminales.
+England, Scotland and Wales always use trigrams: their emoji flags ("tag sequences") render poorly on too many terminals.
 
-## Datos
+## Data
 
-Los datos provienen de la API JSON pública **no documentada** de ESPN (la misma que usa espn.com). No requiere API key. Al ser no oficial, podría cambiar sin aviso; la app degrada con elegancia ante errores (conserva los últimos datos y reintenta).
+Data comes from ESPN's public **undocumented** JSON API (the same backend espn.com uses). No API key required. Being unofficial, it may change without notice — the app degrades gracefully and the data layer is isolated in a single module ([`src/espn.rs`](src/espn.rs)) to make a source swap cheap.
 
-Polling: scoreboard cada ~30s, partido abierto cada ~15s, relajado a ~120s sin partidos en vivo.
+Polling is deliberately gentle: ~30s for the scoreboard, ~15s for the open match, relaxed to ~120s when nothing is live.
+
+This project is not affiliated with ESPN or FIFA.
+
+## Architecture
+
+```
+src/
+├── main.rs        # terminal setup, event loop, tokio poller (mpsc channel)
+├── app.rs         # app state + pure logic (sorting, columns, scroll window)
+├── espn.rs        # anti-corruption layer over the ESPN API
+├── flags.rs       # FIFA→ISO map + emoji activation policy
+├── model.rs       # guaranteed domain types (Match, KeyEvent, ...)
+└── ui/            # ratatui views; all colors live in theme.rs (DESIGN.md)
+```
+
+Two design decisions worth knowing:
+
+- **The UI thread never does I/O.** A tokio task owns all networking and sends normalized data through a channel; slow networks can't freeze the keyboard.
+- **The ESPN JSON is treated as hostile.** Deserialization structs are fully permissive (`Option` + defaults); a guaranteed internal model is built immediately, and tests run against real fixtures captured from the tournament ([`tests/fixtures/`](tests/fixtures/)).
+
+The functional requirements live as living documentation in [`openspec/specs/`](openspec/specs/), maintained with [OpenSpec](https://github.com/Fission-AI/OpenSpec): every capability (match data, dashboard, detail view, live refresh, country flags) has its requirements and acceptance scenarios written down, and every change that shaped the project is archived under `openspec/changes/archive/`.
+
+## Development
+
+```bash
+cargo test                                # unit + fixture-based tests
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
+```
+
+To regenerate the README captures (ideally during a live match), install [vhs](https://github.com/charmbracelet/vhs) and run:
+
+```bash
+vhs assets/demo.tape
+```
+
+## License
+
+[MIT](LICENSE) © 2026 Aarón López Sosa

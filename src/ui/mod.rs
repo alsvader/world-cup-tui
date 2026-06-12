@@ -3,11 +3,11 @@ mod list;
 pub mod theme;
 
 use chrono::Local;
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
-use ratatui::Frame;
 
 use world_cup_tui::flags::flag_emoji;
 use world_cup_tui::model::Team;
@@ -45,10 +45,15 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 /// Barra superior del dashboard: marca a la izquierda, fecha/hora local a la
 /// derecha (sin segundos, para no parpadear cada segundo).
 fn render_header(frame: &mut Frame, area: Rect) {
-    let clock = Local::now().format("%d %b %Y · %H:%M").to_string().to_uppercase();
-    let [left, right] =
-        Layout::horizontal([Constraint::Min(0), Constraint::Length(clock.len() as u16 + 1)])
-            .areas(area);
+    let clock = Local::now()
+        .format("%d %b %Y · %H:%M")
+        .to_string()
+        .to_uppercase();
+    let [left, right] = Layout::horizontal([
+        Constraint::Min(0),
+        Constraint::Length(clock.len() as u16 + 1),
+    ])
+    .areas(area);
     frame.render_widget(
         Paragraph::new(Span::styled(
             " WORLD CUP TUI",

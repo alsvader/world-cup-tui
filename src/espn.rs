@@ -235,8 +235,7 @@ pub fn filter_relevant(matches: Vec<Match>, today: NaiveDate) -> Vec<Match> {
             None => true,
             Some(k) => {
                 let date = k.with_timezone(&Local).date_naive();
-                date == today
-                    || (Some(date) == yesterday && m.status == MatchStatus::Finished)
+                date == today || (Some(date) == yesterday && m.status == MatchStatus::Finished)
             }
         })
         .collect()
@@ -323,7 +322,11 @@ fn normalize_key_event(ev: raw::RawKeyEvent) -> KeyEvent {
         .and_then(|p| p.athlete.as_ref())
         .map(|a| a.display_name.clone())
         .filter(|n| !n.is_empty());
-    let text = if ev.text.is_empty() { ev.short_text } else { ev.text };
+    let text = if ev.text.is_empty() {
+        ev.short_text
+    } else {
+        ev.text
+    };
     KeyEvent {
         minute: ev.clock.display_value,
         period: ev.period.number,

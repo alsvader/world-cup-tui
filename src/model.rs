@@ -45,7 +45,9 @@ pub enum CardColor {
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyEventKind {
     /// `detail` conserva la variante reportada por la fuente, p. ej. "Header".
-    Goal { detail: Option<String> },
+    Goal {
+        detail: Option<String>,
+    },
     Card(CardColor),
     Substitution,
     /// Cualquier tipo no reconocido se conserva como texto, nunca se descarta.

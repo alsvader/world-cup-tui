@@ -2,14 +2,14 @@
 //! FINALIZADOS) según la pantalla "World Cup TUI Dashboard" de Stitch.
 
 use chrono::Local;
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
-use ratatui::Frame;
 
 use world_cup_tui::model::{Match, MatchStatus};
 
-use crate::app::{status_rank, App};
+use crate::app::{App, status_rank};
 use crate::ui::{team_slot, theme};
 
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {

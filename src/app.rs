@@ -174,7 +174,6 @@ impl App {
             }
         }
     }
-
 }
 
 pub fn status_rank(m: &Match) -> u8 {
@@ -204,13 +203,14 @@ pub fn timeline_rows(events: &[KeyEvent], m: &Match, mode: TimelineMode) -> Vec<
             let col = event_column(ev, m);
             match mode {
                 // ESPN duplica algunos eventos (pausas) con texto vacío: ruido.
-                TimelineMode::All => (!ev.text.is_empty() || ev.player.is_some())
-                    .then_some((i, col)),
-                TimelineMode::Key => (matches!(
-                    ev.kind,
-                    KeyEventKind::Goal { .. } | KeyEventKind::Card(_)
-                ) && col != Column::Neutral)
-                    .then_some((i, col)),
+                TimelineMode::All => {
+                    (!ev.text.is_empty() || ev.player.is_some()).then_some((i, col))
+                }
+                TimelineMode::Key => {
+                    (matches!(ev.kind, KeyEventKind::Goal { .. } | KeyEventKind::Card(_))
+                        && col != Column::Neutral)
+                        .then_some((i, col))
+                }
             }
         })
         .collect()
@@ -266,12 +266,18 @@ mod tests {
     fn column_assignment() {
         let m = mk_match();
         let goal = KeyEventKind::Goal { detail: None };
-        assert_eq!(event_column(&mk_event(Some("Mexico"), goal.clone()), &m), Column::Home);
+        assert_eq!(
+            event_column(&mk_event(Some("Mexico"), goal.clone()), &m),
+            Column::Home
+        );
         assert_eq!(
             event_column(&mk_event(Some("South Africa"), goal.clone()), &m),
             Column::Away
         );
-        assert_eq!(event_column(&mk_event(Some("Otro"), goal.clone()), &m), Column::Neutral);
+        assert_eq!(
+            event_column(&mk_event(Some("Otro"), goal.clone()), &m),
+            Column::Neutral
+        );
         assert_eq!(event_column(&mk_event(None, goal), &m), Column::Neutral);
     }
 
@@ -282,12 +288,12 @@ mod tests {
         empty_dup.text = String::new();
         empty_dup.player = None;
         let events = vec![
-            mk_event(None, KeyEventKind::Other),                                  // kickoff
+            mk_event(None, KeyEventKind::Other), // kickoff
             mk_event(Some("Mexico"), KeyEventKind::Goal { detail: None }),
             mk_event(Some("South Africa"), KeyEventKind::Card(CardColor::Yellow)),
             mk_event(Some("Mexico"), KeyEventKind::Substitution),
-            mk_event(None, KeyEventKind::Goal { detail: None }),                  // sin equipo
-            empty_dup,                                                            // duplicado vacío
+            mk_event(None, KeyEventKind::Goal { detail: None }), // sin equipo
+            empty_dup,                                           // duplicado vacío
         ];
         let key = timeline_rows(&events, &m, TimelineMode::Key);
         assert_eq!(key, vec![(1, Column::Home), (2, Column::Away)]);

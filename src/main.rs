@@ -75,9 +75,10 @@ fn run(
         terminal.draw(|frame| ui::render(frame, &mut app))?;
         if event::poll(Duration::from_millis(250))?
             && let Event::Key(key) = event::read()?
-                && key.kind == event::KeyEventKind::Press {
-                    handle_key(&mut app, &cmd_tx, key.code);
-                }
+            && key.kind == event::KeyEventKind::Press
+        {
+            handle_key(&mut app, &cmd_tx, key.code);
+        }
         if app.should_quit {
             return Ok(());
         }
@@ -143,23 +144,32 @@ async fn poller(data_tx: UnboundedSender<DataMsg>, mut cmd_rx: UnboundedReceiver
                     let _ = data_tx.send(DataMsg::Error(e.to_string()));
                 }
             }
-            let secs = if any_live { SCOREBOARD_LIVE_SECS } else { IDLE_SECS };
+            let secs = if any_live {
+                SCOREBOARD_LIVE_SECS
+            } else {
+                IDLE_SECS
+            };
             next_scoreboard = Instant::now() + Duration::from_secs(secs);
         }
 
         if let Some(id) = detail.clone()
-            && next_summary.is_some_and(|t| now >= t) {
-                match client.fetch_summary(&id).await {
-                    Ok(events) => {
-                        let _ = data_tx.send(DataMsg::Events { id, events });
-                    }
-                    Err(e) => {
-                        let _ = data_tx.send(DataMsg::Error(e.to_string()));
-                    }
+            && next_summary.is_some_and(|t| now >= t)
+        {
+            match client.fetch_summary(&id).await {
+                Ok(events) => {
+                    let _ = data_tx.send(DataMsg::Events { id, events });
                 }
-                let secs = if any_live { SUMMARY_LIVE_SECS } else { IDLE_SECS };
-                next_summary = Some(Instant::now() + Duration::from_secs(secs));
+                Err(e) => {
+                    let _ = data_tx.send(DataMsg::Error(e.to_string()));
+                }
             }
+            let secs = if any_live {
+                SUMMARY_LIVE_SECS
+            } else {
+                IDLE_SECS
+            };
+            next_summary = Some(Instant::now() + Duration::from_secs(secs));
+        }
 
         let mut deadline = next_scoreboard;
         if let Some(t) = next_summary {

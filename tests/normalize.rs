@@ -69,7 +69,10 @@ fn unknown_event_types_become_other_and_are_kept() {
         .iter()
         .find(|e| e.kind == KeyEventKind::Other && e.text.contains("First Half ends"))
         .or_else(|| events.iter().find(|e| e.kind == KeyEventKind::Other));
-    assert!(kickoff.is_some(), "tipos no mapeados se conservan como Other");
+    assert!(
+        kickoff.is_some(),
+        "tipos no mapeados se conservan como Other"
+    );
 }
 
 #[test]
