@@ -1,21 +1,4 @@
-# match-detail-ui Specification
-
-## Purpose
-
-Vista de detalle de un partido: cabecera con marcador, minuto, estado y sede; línea de tiempo de eventos clave; indicador de frescura de datos.
-
-## Requirements
-
-### Requirement: Cabecera del partido con marcador y minuto
-La vista de detalle SHALL mostrar de forma prominente: ambos equipos, el marcador actual, el minuto en curso (incluyendo tiempo añadido, p. ej. "45'+4'"), el estado del partido (en vivo / medio tiempo / finalizado / programado) y la sede con su ciudad.
-
-#### Scenario: Partido en vivo
-- **WHEN** se abre el detalle de un partido en curso
-- **THEN** se muestran marcador, minuto en curso, indicador de EN VIVO y sede con ciudad
-
-#### Scenario: Partido programado
-- **WHEN** se abre el detalle de un partido que aún no comienza
-- **THEN** se muestra la hora de inicio local y los equipos, sin marcador inventado
+## MODIFIED Requirements
 
 ### Requirement: Línea de tiempo de eventos clave
 La vista de detalle SHALL mostrar los eventos del partido en dos columnas por equipo (local izquierda, visitante derecha) con el minuto al centro, en orden cronológico, bajo un encabezado fijo con la identidad de cada equipo. La vista por defecto SHALL incluir únicamente goles (con autor y tipo) y tarjetas (amarillas/rojas), con iconografía diferenciada. Los eventos sin equipo asignable SHALL omitirse en la vista por defecto y mostrarse centrados en la vista completa.
@@ -32,19 +15,7 @@ La vista de detalle SHALL mostrar los eventos del partido en dos columnas por eq
 - **WHEN** hay eventos de ambos equipos
 - **THEN** las filas se ordenan cronológicamente de forma global (no por columna), de modo que la narrativa temporal del partido se preserva
 
-### Requirement: Indicador de frescura de datos
-La TUI SHALL mostrar la hora local de la última actualización exitosa de datos ("ACTUALIZADO HH:MM:SS"). El indicador SHALL ser estático entre actualizaciones (sin contadores que cambien cada segundo, para no generar ruido visual).
-
-#### Scenario: Datos recién actualizados
-- **WHEN** llega una actualización exitosa de datos
-- **THEN** el indicador muestra la hora de esa actualización y no cambia hasta la siguiente
-
-### Requirement: Volver a la lista
-La vista de detalle SHALL permitir volver a la lista con Esc y salir de la aplicación con q.
-
-#### Scenario: Volver
-- **WHEN** el usuario presiona Esc en la vista de detalle
-- **THEN** la TUI regresa a la lista de partidos conservando la selección previa
+## ADDED Requirements
 
 ### Requirement: Toggle de vista completa del timeline
 La vista de detalle SHALL alternar con la tecla t entre la vista por defecto (goles y tarjetas) y la vista completa (todos los eventos: cambios, pausas, medio tiempo, etc.). El título del panel SHALL indicar el modo activo y la tecla de alternancia. Al cambiar de modo, el scroll SHALL volver al fondo.

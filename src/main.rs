@@ -72,7 +72,7 @@ fn run(
             // como cambiado.
             terminal.swap_buffers();
         }
-        terminal.draw(|frame| ui::render(frame, &app))?;
+        terminal.draw(|frame| ui::render(frame, &mut app))?;
         if event::poll(Duration::from_millis(250))?
             && let Event::Key(key) = event::read()?
                 && key.kind == event::KeyEventKind::Press {
@@ -101,12 +101,16 @@ fn handle_key(app: &mut App, cmd_tx: &UnboundedSender<Cmd>, code: KeyCode) {
                 }
                 _ => {}
             },
-            View::Detail => {
-                if code == KeyCode::Esc {
+            View::Detail => match code {
+                KeyCode::Esc => {
                     app.close_detail();
                     let _ = cmd_tx.send(Cmd::CloseDetail);
                 }
-            }
+                KeyCode::Char('t') => app.toggle_timeline_mode(),
+                KeyCode::Up | KeyCode::Char('k') => app.timeline_scroll_up(),
+                KeyCode::Down | KeyCode::Char('j') => app.timeline_scroll_down(),
+                _ => {}
+            },
         },
     }
 }

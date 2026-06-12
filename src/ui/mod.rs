@@ -23,7 +23,7 @@ pub fn team_slot(team: &Team, emoji: bool) -> String {
     team.abbrev.clone()
 }
 
-pub fn render(frame: &mut Frame, app: &App) {
+pub fn render(frame: &mut Frame, app: &mut App) {
     // Fondo del sistema de diseño en toda la pantalla.
     frame.render_widget(Block::default().style(theme::base()), frame.area());
 
@@ -62,7 +62,7 @@ fn render_header(frame: &mut Frame, area: Rect) {
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     let keys = match app.view {
         View::List => " [Q] SALIR · [R] REFRESCAR · [J/K] NAVEGAR · [ENTER] DETALLE",
-        View::Detail => " [ESC] VOLVER · [R] REFRESCAR · [Q] SALIR",
+        View::Detail => " [ESC] VOLVER · [T] FILTRO · [↑↓] SCROLL · [R] REFRESCAR · [Q] SALIR",
     };
     let mut right_spans = Vec::new();
     if let Some(t) = app.last_update {
