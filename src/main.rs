@@ -15,7 +15,15 @@ use crate::app::{App, View};
 
 pub enum DataMsg {
     Matches(Vec<Match>),
-    Events { id: String, events: Vec<MatchEvent> },
+    HistoryMatches {
+        date: chrono::NaiveDate,
+        matches: Vec<Match>,
+    },
+    HistoryLoadFailed,
+    Events {
+        id: String,
+        events: Vec<MatchEvent>,
+    },
     Error(String),
 }
 
@@ -23,6 +31,7 @@ pub enum Cmd {
     OpenDetail(String),
     CloseDetail,
     Refresh,
+    LoadPreviousJornada(chrono::NaiveDate),
 }
 
 const SCOREBOARD_LIVE_SECS: u64 = 30;
@@ -30,6 +39,10 @@ const SUMMARY_LIVE_SECS: u64 = 15;
 const IDLE_SECS: u64 = 120;
 
 fn main() -> Result<()> {
+    if std::env::args().any(|a| a == "--version") {
+        println!("world-cup-tui 0.1.0 — historial de jornadas ([p])");
+        return Ok(());
+    }
     let cli_override = std::env::args().fold(None, |acc, a| match a.as_str() {
         "--flags" => Some(true),
         "--no-flags" => Some(false),
@@ -95,6 +108,11 @@ fn handle_key(app: &mut App, cmd_tx: &UnboundedSender<Cmd>, code: KeyCode) {
             View::List => match code {
                 KeyCode::Up | KeyCode::Char('k') => app.select_prev(),
                 KeyCode::Down | KeyCode::Char('j') => app.select_next(),
+                KeyCode::Char('p') | KeyCode::Char('P') => {
+                    if let Some(target) = app.try_start_history_load() {
+                        let _ = cmd_tx.send(Cmd::LoadPreviousJornada(target));
+                    }
+                }
                 KeyCode::Enter => {
                     if let Some(id) = app.open_selected() {
                         let _ = cmd_tx.send(Cmd::OpenDetail(id));
@@ -190,6 +208,20 @@ async fn poller(data_tx: UnboundedSender<DataMsg>, mut cmd_rx: UnboundedReceiver
                     next_scoreboard = Instant::now();
                     if detail.is_some() {
                         next_summary = Some(Instant::now());
+                    }
+                }
+                Some(Cmd::LoadPreviousJornada(day)) => {
+                    match client.fetch_scoreboard_day(day).await {
+                        Ok(matches) => {
+                            let _ = data_tx.send(DataMsg::HistoryMatches {
+                                date: day,
+                                matches,
+                            });
+                        }
+                        Err(e) => {
+                            let _ = data_tx.send(DataMsg::Error(e.to_string()));
+                            let _ = data_tx.send(DataMsg::HistoryLoadFailed);
+                        }
                     }
                 }
                 // La UI terminó: no queda nadie escuchando.

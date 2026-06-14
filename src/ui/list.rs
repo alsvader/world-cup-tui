@@ -1,7 +1,7 @@
 //! Vista principal: dashboard de tres paneles (EN VIVO / PRÓXIMOS /
 //! FINALIZADOS) según la pantalla "World Cup TUI Dashboard" de Stitch.
 
-use chrono::Local;
+use chrono::{Datelike, Days, Local, NaiveDate};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
@@ -9,10 +9,10 @@ use ratatui::widgets::{Block, Paragraph};
 
 use world_cup_tui::model::{Match, MatchStatus};
 
-use crate::app::{App, status_rank};
+use crate::app::{App, FinishedLine, scroll_window, status_rank};
 use crate::ui::{team_slot, theme};
 
-pub fn render(frame: &mut Frame, app: &App, area: Rect) {
+pub fn render(frame: &mut Frame, app: &mut App, area: Rect) {
     let order = app.display_order();
     if order.is_empty() && app.last_update.is_none() {
         frame.render_widget(
@@ -40,11 +40,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let finished = group(2);
 
     let panel_h = |rows: usize, extra: u16| rows.max(1) as u16 + 2 + extra;
-    let [live_a, up_a, fin_a, _] = Layout::vertical([
+    let [live_a, up_a, fin_a] = Layout::vertical([
         Constraint::Length(panel_h(live.len(), 0)),
         Constraint::Length(panel_h(upcoming.len(), 1)), // +1: fila de columnas
-        Constraint::Length(panel_h(finished.len(), 0)),
-        Constraint::Min(0),
+        Constraint::Min(6),
     ])
     .areas(area);
 
@@ -136,37 +135,96 @@ fn render_upcoming(frame: &mut Frame, app: &App, rows: &[(usize, usize)], area: 
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
-fn render_finished(frame: &mut Frame, app: &App, rows: &[(usize, usize)], area: Rect) {
-    let block = panel(" ✓ FINALIZADOS ", None);
+fn render_finished(frame: &mut Frame, app: &mut App, rows: &[(usize, usize)], area: Rect) {
+    let title_right = finished_panel_hint(app);
     if rows.is_empty() {
+        let msg = if app.can_load_previous() {
+            " AÚN NINGUNO — PULSA [P] PARA JORNADAS ANTERIORES"
+        } else if app.history_loading {
+            " CARGANDO JORNADA ANTERIOR..."
+        } else {
+            " AÚN NINGUNO"
+        };
         frame.render_widget(
-            Paragraph::new(Span::styled(" AÚN NINGUNO", theme::muted())).block(block),
+            Paragraph::new(Span::styled(msg, theme::muted())).block(panel(" ✓ FINALIZADOS ", title_right)),
             area,
         );
         return;
     }
-    let lines: Vec<Line> = rows
+
+    let finished_lines = app.finished_lines();
+    let total = finished_lines.len();
+    let visible = area.height.saturating_sub(2) as usize;
+    app.finished_max_offset = total.saturating_sub(visible);
+    if app
+        .finished_scroll
+        .is_some_and(|s| s >= app.finished_max_offset)
+    {
+        app.finished_scroll = None;
+    }
+
+    let sel_pos = app.selected;
+    for (li, line) in finished_lines.iter().enumerate() {
+        if let FinishedLine::Match(i) = line
+            && rows.iter().any(|&(pos, idx)| pos == sel_pos && idx == *i)
+        {
+            app.ensure_finished_line_visible(li, visible);
+            break;
+        }
+    }
+
+    let (start, above, below) = scroll_window(total, visible, app.finished_scroll);
+
+    let mut block = panel(" ✓ FINALIZADOS ", title_right);
+    if above > 0 {
+        block = block.title_top(
+            Line::from(Span::styled(format!("▲ {above} "), theme::refresh())).right_aligned(),
+        );
+    }
+    if below > 0 {
+        block = block.title_bottom(
+            Line::from(Span::styled(format!("▼ {below} "), theme::refresh())).right_aligned(),
+        );
+    }
+
+    let display_lines: Vec<Line> = finished_lines
         .iter()
-        .map(|&(pos, i)| score_row(&app.matches[i], pos == app.selected, false, app.emoji))
+        .skip(start)
+        .take(visible)
+        .map(|line| match line {
+            FinishedLine::Separator(d) => {
+                Line::from(Span::styled(jornada_separator_label(*d), theme::muted()))
+            }
+            FinishedLine::Match(i) => {
+                let selected = rows.iter().any(|&(pos, idx)| pos == sel_pos && idx == *i);
+                score_row(&app.matches[*i], selected, false, app.emoji)
+            }
+        })
         .collect();
-    frame.render_widget(Paragraph::new(lines).block(block), area);
+
+    frame.render_widget(Paragraph::new(display_lines).block(block), area);
+}
+
+fn finished_panel_hint(app: &App) -> Option<Line<'static>> {
+    if app.history_loading {
+        Some(Line::from(Span::styled("[···] ", theme::refresh())))
+    } else if app.can_load_previous() {
+        Some(Line::from(Span::styled("[P] MÁS ", theme::finished())))
+    } else {
+        None
+    }
 }
 
 /// Fila con marcador en caja: ` 62'   MEXICO 🇲🇽   [ 2 - 0 ]  🇿🇦 SOUTH AFRICA   sede`.
-/// El slot de identidad mide 3 celdas en ambos modos: trigrama ASCII de 3
-/// chars, o bandera (2 celdas) + 1 espacio de padding de `{:<3}`.
 fn score_row(m: &Match, selected: bool, live: bool, emoji: bool) -> Line<'static> {
-    let left = match m.status {
-        MatchStatus::Live => m.clock.clone().unwrap_or_else(|| "··'".into()),
-        MatchStatus::HalfTime => "MT".into(),
-        MatchStatus::Finished
-            if m.kickoff.is_some_and(|k| {
-                k.with_timezone(&Local).date_naive() < Local::now().date_naive()
-            }) =>
-        {
-            "AYER".into()
+    let left = if live {
+        match m.status {
+            MatchStatus::Live => m.clock.clone().unwrap_or_else(|| "··'".into()),
+            MatchStatus::HalfTime => "MT".into(),
+            _ => m.status_detail.clone(),
         }
-        _ => m.status_detail.clone(),
+    } else {
+        finished_left_label(m)
     };
     let score = match (m.home.score, m.away.score) {
         (Some(h), Some(a)) => format!("[ {h} - {a} ]"),
@@ -188,4 +246,46 @@ fn score_row(m: &Match, selected: bool, live: bool, emoji: bool) -> Line<'static
         theme::finished()
     };
     Line::from(Span::styled(text, style))
+}
+
+fn finished_left_label(m: &Match) -> String {
+    let today = Local::now().date_naive();
+    let yesterday = today.checked_sub_days(Days::new(1));
+    match m.kickoff {
+        Some(k) => {
+            let d = k.with_timezone(&Local).date_naive();
+            if d == today {
+                if m.status_detail.is_empty() {
+                    "FT".into()
+                } else {
+                    m.status_detail.clone()
+                }
+            } else if Some(d) == yesterday {
+                "AYER".into()
+            } else {
+                jornada_row_label(d)
+            }
+        }
+        None => m.status_detail.clone(),
+    }
+}
+
+fn jornada_row_label(d: NaiveDate) -> String {
+    const DAYS: [&str; 7] = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+    let idx = d.weekday().num_days_from_sunday() as usize;
+    format!("{} {:02}/{:02}", DAYS[idx], d.day(), d.month())
+}
+
+fn jornada_separator_label(d: NaiveDate) -> String {
+    const DAYS: [&str; 7] = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+    const MONTHS: [&str; 12] = [
+        "ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC",
+    ];
+    let idx = d.weekday().num_days_from_sunday() as usize;
+    format!(
+        "─── {} {} {} ───",
+        DAYS[idx],
+        d.day(),
+        MONTHS[d.month() as usize - 1]
+    )
 }

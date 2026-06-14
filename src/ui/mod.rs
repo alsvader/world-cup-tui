@@ -66,8 +66,9 @@ fn render_header(frame: &mut Frame, area: Rect) {
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     let keys = match app.view {
-        View::List => " [Q] SALIR · [R] REFRESCAR · [J/K] NAVEGAR · [ENTER] DETALLE",
-        View::Detail => " [ESC] VOLVER · [T] FILTRO · [↑↓] SCROLL · [R] REFRESCAR · [Q] SALIR",
+        // [P] al inicio: en terminales estrechas no se pierde la acción nueva.
+        View::List => " [P] JORNADA · [J/K] · [ENTER] · [R] · [Q]",
+        View::Detail => " [ESC] VOLVER · [T] FILTRO · [↑↓] · [R] · [Q]",
     };
     let mut right_spans = Vec::new();
     if let Some(t) = app.last_update {
@@ -82,9 +83,18 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled("SIN CONEXIÓN — REINTENTANDO · ", theme::error()),
         );
     }
-    let right_w: usize = right_spans.iter().map(|s| s.content.chars().count()).sum();
-    let [left, right] =
-        Layout::horizontal([Constraint::Min(0), Constraint::Length(right_w as u16)]).areas(area);
-    frame.render_widget(Paragraph::new(Span::styled(keys, theme::muted())), left);
-    frame.render_widget(Paragraph::new(Line::from(right_spans)), right);
+  let width = area.width as usize;
+  let keys_w = keys.chars().count();
+  // Reservar espacio para las teclas; el estado de red no debe tapar [P].
+  let keys_cols = keys_w.min(width).max(1);
+  let right_cols = width.saturating_sub(keys_cols);
+  let [left, right] = Layout::horizontal([
+      Constraint::Length(keys_cols as u16),
+      Constraint::Length(right_cols as u16),
+  ])
+  .areas(area);
+  frame.render_widget(Paragraph::new(Span::styled(keys, theme::muted())), left);
+  if right_cols > 0 {
+      frame.render_widget(Paragraph::new(Line::from(right_spans)), right);
+  }
 }

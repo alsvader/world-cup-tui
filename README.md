@@ -8,10 +8,12 @@ A terminal UI for following the **FIFA World Cup 2026** live: scores, match cloc
 
 ![demo](assets/demo.gif)
 
+*El demo muestra el dashboard, la carga de jornadas anteriores en FINALIZADOS con `p`, navegación en la lista ampliada y la vista de detalle.*
+
 ## Features
 
 - **Live match tracking** — score and match clock update automatically (~30s for the dashboard, ~15s for the match you have open).
-- **Three-panel dashboard** — LIVE (with active-match counter), UPCOMING (kickoff times in *your* timezone, venue and city) and FINISHED (including yesterday's results).
+- **Three-panel dashboard** — LIVE (with active-match counter), UPCOMING (kickoff times in *your* timezone, venue and city) and FINISHED (today and yesterday by default; press `p` to load earlier matchdays incrementally).
 - **Match centre detail view** — goals and cards in two columns, one per team, minute in the middle, in shared chronological order. Press `t` to see the full event feed (substitutions, delays, halftime).
 - **Sticky-bottom scrolling** — follow a live match pinned to the latest event, or scroll up through history without being dragged down when new events arrive.
 - **Country flags with progressive enhancement** — FIFA trigrams (`MEX`, `BRA`) everywhere as the universal base; flag emoji 🇲🇽 and event icons ⚽🟨🟥 automatically enabled on terminals known to render them well.
@@ -40,6 +42,7 @@ cargo build --release
 |---|---|
 | `↑↓` / `j k` | Move selection (list) / scroll timeline (detail) |
 | `Enter` | Open match detail |
+| `p` | Load previous matchday into FINISHED (one calendar day back) |
 | `t` | Toggle timeline: goals & cards ⇄ full event feed |
 | `Esc` | Back to the dashboard |
 | `r` | Refresh now |

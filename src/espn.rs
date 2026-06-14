@@ -13,6 +13,17 @@ use crate::model::{CardColor, KeyEvent, KeyEventKind, Match, MatchStatus, Team};
 
 const BASE: &str = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world";
 
+/// Primer día con partidos de la Copa 2026 (fase de grupos).
+pub fn tournament_start() -> NaiveDate {
+    NaiveDate::from_ymd_opt(2026, 6, 11).expect("inicio del torneo")
+}
+
+/// Día calendario local a cargar antes de `earliest_loaded`; `None` si ya en el límite.
+pub fn previous_jornada_target(earliest_loaded: NaiveDate) -> Option<NaiveDate> {
+    let target = earliest_loaded.checked_sub_days(Days::new(1))?;
+    (target >= tournament_start()).then_some(target)
+}
+
 mod raw {
     use serde::Deserialize;
 
@@ -188,9 +199,22 @@ impl Client {
         let today = Local::now().date_naive();
         let from = today.checked_sub_days(Days::new(1)).unwrap_or(today);
         let to = today.checked_add_days(Days::new(1)).unwrap_or(today);
+        let body = self.fetch_scoreboard_body(from, to).await?;
+        Ok(filter_relevant(parse_scoreboard(&body)?, today))
+    }
+
+    /// Partidos finalizados de un día calendario local (carga bajo demanda).
+    pub async fn fetch_scoreboard_day(&self, day: NaiveDate) -> Result<Vec<Match>> {
+        if day < tournament_start() {
+            return Ok(vec![]);
+        }
+        let body = self.fetch_scoreboard_body(day, day).await?;
+        Ok(filter_finished_on_day(&parse_scoreboard(&body)?, day))
+    }
+
+    async fn fetch_scoreboard_body(&self, from: NaiveDate, to: NaiveDate) -> Result<String> {
         let dates = format!("{}-{}", from.format("%Y%m%d"), to.format("%Y%m%d"));
-        let body = self
-            .http
+        self.http
             .get(format!("{BASE}/scoreboard?dates={dates}"))
             .send()
             .await
@@ -199,8 +223,7 @@ impl Client {
             .context("el scoreboard respondió con error HTTP")?
             .text()
             .await
-            .context("no se pudo leer el cuerpo del scoreboard")?;
-        Ok(filter_relevant(parse_scoreboard(&body)?, today))
+            .context("no se pudo leer el cuerpo del scoreboard")
     }
 
     pub async fn fetch_summary(&self, event_id: &str) -> Result<Vec<KeyEvent>> {
@@ -225,19 +248,37 @@ pub fn parse_scoreboard(json: &str) -> Result<Vec<Match>> {
     Ok(sb.events.into_iter().filter_map(normalize_event).collect())
 }
 
+/// Partidos que entran en la ventana del poll periódico (hoy + finalizados ayer).
+pub fn is_in_poll_window(m: &Match, today: NaiveDate) -> bool {
+    match m.kickoff {
+        None => true,
+        Some(k) => {
+            let date = k.with_timezone(&Local).date_naive();
+            let yesterday = today.checked_sub_days(Days::new(1));
+            date == today || (Some(date) == yesterday && m.status == MatchStatus::Finished)
+        }
+    }
+}
+
 /// Partidos relevantes para el dashboard: todos los de hoy (hora local) y los
 /// FINALIZADOS de ayer. Sin fecha de inicio se conservan (no clasificables).
 pub fn filter_relevant(matches: Vec<Match>, today: NaiveDate) -> Vec<Match> {
-    let yesterday = today.checked_sub_days(Days::new(1));
     matches
         .into_iter()
-        .filter(|m| match m.kickoff {
-            None => true,
-            Some(k) => {
-                let date = k.with_timezone(&Local).date_naive();
-                date == today || (Some(date) == yesterday && m.status == MatchStatus::Finished)
-            }
+        .filter(|m| is_in_poll_window(m, today))
+        .collect()
+}
+
+/// Solo finalizados cuya fecha de inicio local coincide con `day`.
+pub fn filter_finished_on_day(matches: &[Match], day: NaiveDate) -> Vec<Match> {
+    matches
+        .iter()
+        .filter(|m| {
+            m.status == MatchStatus::Finished
+                && m.kickoff
+                    .is_some_and(|k| k.with_timezone(&Local).date_naive() == day)
         })
+        .cloned()
         .collect()
 }
 

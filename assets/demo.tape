@@ -1,5 +1,5 @@
-# Demo principal: dashboard → detalle (dos columnas) → toggle TODO → scroll.
-# Regenerar con: vhs assets/demo.tape  (idealmente durante un partido en vivo)
+# Demo: dashboard → historial [p] en FINALIZADOS → detalle → timeline.
+# Regenerar con: vhs assets/demo.tape  (idealmente con partidos en el torneo)
 # Nota: se graba con --no-flags porque el renderer de VHS (xterm.js/Chromium)
 # no liga los pares regional-indicator de las banderas emoji.
 Output assets/demo.gif
@@ -19,9 +19,19 @@ Show
 Sleep 3s
 Screenshot assets/dashboard.png
 
-# Bajar al partido inaugural (finalizados) y abrir su detalle
-Down
-Sleep 800ms
+# FINALIZADOS: bajar al panel y cargar dos jornadas anteriores con [p]
+Type "jjjjj"
+Sleep 1.5s
+Type "p"
+Sleep 4s
+Type "p"
+Sleep 4s
+Type "jjj"
+Sleep 1.5s
+Type "kkk"
+Sleep 1.5s
+
+# Detalle del partido seleccionado
 Enter
 Sleep 5s
 Screenshot assets/detail.png

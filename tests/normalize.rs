@@ -1,5 +1,8 @@
 use chrono::{DateTime, Days, Local, NaiveDate, TimeZone, Utc};
-use world_cup_tui::espn::{filter_relevant, parse_scoreboard, parse_summary};
+use world_cup_tui::espn::{
+    filter_finished_on_day, filter_relevant, parse_scoreboard, parse_summary,
+    previous_jornada_target, tournament_start,
+};
 use world_cup_tui::model::{CardColor, KeyEventKind, Match, MatchStatus, Team};
 
 const SCOREBOARD: &str = include_str!("fixtures/scoreboard.json");
@@ -156,6 +159,26 @@ fn filter_keeps_today_and_yesterdays_finished() {
         })
         .collect();
     assert_eq!(filter_relevant(scheduled, next_day).len(), 0);
+}
+
+#[test]
+fn filter_finished_on_day_only_finished_matching_date() {
+    let day = NaiveDate::from_ymd_opt(2026, 6, 11).unwrap();
+    let other = day.checked_add_days(Days::new(1)).unwrap();
+    let finished = sample_finished_match(kickoff_local(day));
+    let mut scheduled = sample_finished_match(kickoff_local(day));
+    scheduled.status = MatchStatus::Scheduled;
+    let other_day = sample_finished_match(kickoff_local(other));
+
+    let all = vec![finished.clone(), scheduled, other_day];
+    let got = filter_finished_on_day(&all, day);
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].id, finished.id);
+}
+
+#[test]
+fn previous_jornada_before_tournament_start_is_none() {
+    assert_eq!(previous_jornada_target(tournament_start()), None);
 }
 
 #[test]

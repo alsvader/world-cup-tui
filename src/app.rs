@@ -1,7 +1,15 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Days, Local, NaiveDate};
+use world_cup_tui::espn::{is_in_poll_window, previous_jornada_target};
 use world_cup_tui::model::{KeyEvent, Match, MatchStatus};
 
 use crate::DataMsg;
+
+/// Línea del panel FINALIZADOS: separador de jornada o fila de partido.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinishedLine {
+    Separator(NaiveDate),
+    Match(usize),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -48,6 +56,12 @@ pub struct App {
     /// Último offset máximo conocido, escrito por el render (la altura del
     /// panel solo se conoce ahí) y leído por el manejo de teclas.
     pub timeline_max_offset: usize,
+    /// Día local más antiguo ya incluido en `matches` (inicialmente ayer).
+    pub earliest_loaded: Option<NaiveDate>,
+    pub history_loading: bool,
+    /// Scroll del panel FINALIZADOS; `None` = pegado al fondo.
+    pub finished_scroll: Option<usize>,
+    pub finished_max_offset: usize,
 }
 
 impl App {
@@ -58,6 +72,10 @@ impl App {
             timeline_mode: TimelineMode::Key,
             timeline_scroll: None,
             timeline_max_offset: 0,
+            earliest_loaded: None,
+            history_loading: false,
+            finished_scroll: None,
+            finished_max_offset: 0,
             view: View::List,
             matches: Vec::new(),
             selected: 0,
@@ -70,19 +88,88 @@ impl App {
     }
 
     /// Índices de `matches` en orden de presentación: en vivo, próximos, finalizados.
+    /// Finalizados: kickoff descendente (más reciente primero), igual que el panel.
     pub fn display_order(&self) -> Vec<usize> {
         let mut idx: Vec<usize> = (0..self.matches.len()).collect();
-        idx.sort_by_key(|&i| (status_rank(&self.matches[i]), self.matches[i].kickoff));
+        idx.sort_by(|&a, &b| {
+            let ma = &self.matches[a];
+            let mb = &self.matches[b];
+            let ra = status_rank(ma);
+            let rb = status_rank(mb);
+            ra.cmp(&rb).then_with(|| kickoff_display_order(ma, mb, ra))
+        });
         idx
     }
 
     pub fn select_prev(&mut self) {
         self.selected = self.selected.saturating_sub(1);
+        self.finished_scroll = None;
     }
 
     pub fn select_next(&mut self) {
         if self.selected + 1 < self.matches.len() {
             self.selected += 1;
+        }
+        self.finished_scroll = None;
+    }
+
+    pub fn can_load_previous(&self) -> bool {
+        !self.history_loading
+            && self
+                .earliest_loaded
+                .is_some_and(|d| previous_jornada_target(d).is_some())
+    }
+
+    pub fn try_start_history_load(&mut self) -> Option<NaiveDate> {
+        if !self.can_load_previous() {
+            return None;
+        }
+        let earliest = self.earliest_loaded.unwrap();
+        let target = previous_jornada_target(earliest).unwrap();
+        self.history_loading = true;
+        Some(target)
+    }
+
+    /// Líneas del panel FINALIZADOS: separadores por jornada, más reciente arriba.
+    pub fn finished_lines(&self) -> Vec<FinishedLine> {
+        let mut indices: Vec<usize> = self
+            .matches
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.status == MatchStatus::Finished)
+            .map(|(i, _)| i)
+            .collect();
+        indices.sort_by(|&a, &b| self.matches[b].kickoff.cmp(&self.matches[a].kickoff));
+
+        let mut lines = Vec::new();
+        let mut last_date: Option<NaiveDate> = None;
+        for i in indices {
+            let date = self.matches[i]
+                .kickoff
+                .map(|k| k.with_timezone(&Local).date_naive());
+            if date != last_date
+                && let Some(d) = date
+            {
+                lines.push(FinishedLine::Separator(d));
+                last_date = Some(d);
+            }
+            lines.push(FinishedLine::Match(i));
+        }
+        lines
+    }
+
+    /// Ajusta `finished_scroll` para que la línea `line_idx` quede visible.
+    pub fn ensure_finished_line_visible(&mut self, line_idx: usize, visible: usize) {
+        if visible == 0 {
+            return;
+        }
+        let total = self.finished_lines().len();
+        let max_offset = total.saturating_sub(visible);
+        let cur = self.finished_scroll.unwrap_or(max_offset);
+        if line_idx < cur {
+            self.finished_scroll = Some(line_idx);
+        } else if line_idx >= cur + visible {
+            self.finished_scroll = Some(line_idx.saturating_sub(visible - 1).min(max_offset));
         }
     }
 
@@ -145,20 +232,35 @@ impl App {
     pub fn apply(&mut self, msg: DataMsg) {
         match msg {
             DataMsg::Matches(matches) => {
-                // Si los partidos cambian de posición o estado, las filas se
-                // mueven de panel y las banderas quedan en celdas distintas.
                 let shape = |ms: &[Match]| -> Vec<(String, MatchStatus)> {
                     ms.iter().map(|m| (m.id.clone(), m.status)).collect()
                 };
-                if shape(&self.matches) != shape(&matches) {
+                let before = shape(&self.matches);
+                merge_poll_matches(&mut self.matches, matches);
+                if shape(&self.matches) != before {
                     self.needs_clear = true;
                 }
-                self.matches = matches;
+                if self.earliest_loaded.is_none() {
+                    let today = Local::now().date_naive();
+                    self.earliest_loaded = today.checked_sub_days(Days::new(1));
+                }
                 if !self.matches.is_empty() && self.selected >= self.matches.len() {
                     self.selected = self.matches.len() - 1;
                 }
                 self.last_update = Some(Local::now());
                 self.error = None;
+            }
+            DataMsg::HistoryMatches { date, matches } => {
+                merge_history_matches(&mut self.matches, matches);
+                self.earliest_loaded = Some(date);
+                self.history_loading = false;
+                self.finished_scroll = None;
+                self.needs_clear = true;
+                self.last_update = Some(Local::now());
+                self.error = None;
+            }
+            DataMsg::HistoryLoadFailed => {
+                self.history_loading = false;
             }
             DataMsg::Events { id, events } => {
                 // Descartar respuestas tardías de un detalle ya cerrado.
@@ -176,11 +278,44 @@ impl App {
     }
 }
 
+/// Fusiona el resultado del poll: actualiza la ventana hoy/ayer sin borrar historial.
+pub fn merge_poll_matches(existing: &mut Vec<Match>, polled: Vec<Match>) {
+    let today = Local::now().date_naive();
+    existing.retain(|m| !is_in_poll_window(m, today));
+    for m in polled {
+        if let Some(pos) = existing.iter().position(|x| x.id == m.id) {
+            existing[pos] = m;
+        } else {
+            existing.push(m);
+        }
+    }
+}
+
+/// Anexa partidos históricos sin duplicar ids.
+pub fn merge_history_matches(existing: &mut Vec<Match>, new_matches: Vec<Match>) {
+    for m in new_matches {
+        if !existing.iter().any(|x| x.id == m.id) {
+            existing.push(m);
+        }
+    }
+}
+
 pub fn status_rank(m: &Match) -> u8 {
     match m.status {
         MatchStatus::Live | MatchStatus::HalfTime => 0,
         MatchStatus::Scheduled => 1,
         MatchStatus::Finished => 2,
+    }
+}
+
+fn kickoff_display_order(a: &Match, b: &Match, rank: u8) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a.kickoff, b.kickoff) {
+        (Some(ka), Some(kb)) if rank == 2 => kb.cmp(&ka),
+        (Some(ka), Some(kb)) => ka.cmp(&kb),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
     }
 }
 
@@ -317,5 +452,54 @@ mod tests {
         assert_eq!(scroll_window(3, 10, Some(5)), (0, 0, 0));
         // Lista vacía.
         assert_eq!(scroll_window(0, 5, None), (0, 0, 0));
+    }
+
+    #[test]
+    fn merge_poll_keeps_history_outside_window() {
+        use chrono::{TimeZone, Utc};
+        let today = Local::now().date_naive();
+        let old_day = today.checked_sub_days(Days::new(5)).unwrap();
+        let kickoff_old = Local
+            .from_local_datetime(&old_day.and_hms_opt(12, 0, 0).unwrap())
+            .single()
+            .unwrap()
+            .with_timezone(&Utc);
+        let mut existing = vec![Match {
+            id: "old".into(),
+            kickoff: Some(kickoff_old),
+            home: Team {
+                name: "A".into(),
+                abbrev: "AAA".into(),
+                score: Some(1),
+            },
+            away: Team {
+                name: "B".into(),
+                abbrev: "BBB".into(),
+                score: Some(0),
+            },
+            status: MatchStatus::Finished,
+            clock: None,
+            status_detail: "FT".into(),
+            venue: None,
+            city: None,
+        }];
+        let polled = vec![mk_match()];
+        merge_poll_matches(&mut existing, polled);
+        assert_eq!(existing.len(), 2);
+        assert!(existing.iter().any(|m| m.id == "old"));
+    }
+
+    #[test]
+    fn merge_history_dedupes_by_id() {
+        let m = mk_match();
+        let mut existing = vec![m.clone()];
+        merge_history_matches(&mut existing, vec![m]);
+        assert_eq!(existing.len(), 1);
+    }
+
+    #[test]
+    fn previous_jornada_respects_tournament_start() {
+        use world_cup_tui::espn::{previous_jornada_target, tournament_start};
+        assert_eq!(previous_jornada_target(tournament_start()), None);
     }
 }
