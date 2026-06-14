@@ -1,6 +1,7 @@
 # world-cup-tui
 
 [![CI](https://github.com/alsvader/world-cup-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/alsvader/world-cup-tui/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/alsvader/world-cup-tui?label=release)](https://github.com/alsvader/world-cup-tui/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
 
@@ -9,6 +10,8 @@ A terminal UI for following the **FIFA World Cup 2026** live: scores, match cloc
 ![demo](assets/demo.gif?v=2)
 
 *El demo muestra el dashboard, la carga de jornadas anteriores en FINALIZADOS con `p`, navegación en la lista ampliada y la vista de detalle.*
+
+**Sin partidos en vivo:** entre jornadas o antes del kickoff, EN VIVO puede estar vacío — es normal. PRÓXIMOS y FINALIZADOS siguen con datos; en FINALIZADOS pulsa `p` para cargar jornadas anteriores y explorar resultados pasados.
 
 ## Features
 
@@ -31,7 +34,11 @@ A truecolor terminal is recommended for the exact design-system palette; any ter
 
 ### Prebuilt binary (recommended)
 
-Download from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releases) or use one of the snippets below. Each script resolves `VERSION` from the latest release automatically.
+Download from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releases) or use one of the snippets below. Each script resolves `VERSION` from the latest release automatically, installs into `~/.local/bin`, and removes the downloaded archive.
+
+**Platforms:** Linux x86_64 and macOS (Intel and Apple Silicon). Windows and Linux ARM are not packaged yet.
+
+**Updating:** run the same block again — `install` replaces the existing binary. Re-running always pulls the latest release.
 
 | Platform | Archive suffix |
 |---|---|
@@ -43,10 +50,13 @@ Download from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releas
 
 ```bash
 VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
-curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-tar xzf "world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+ARCHIVE="world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/${ARCHIVE}"
+tar xzf "${ARCHIVE}"
 mkdir -p "${HOME}/.local/bin"
 install -m 755 world-cup-tui "${HOME}/.local/bin/"
+rm "${ARCHIVE}"
+world-cup-tui --version
 world-cup-tui
 ```
 
@@ -56,10 +66,13 @@ Ensure `~/.local/bin` is on your `PATH` (common on Linux desktops; add `export P
 
 ```bash
 VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
-curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-aarch64-apple-darwin.tar.gz"
-tar xzf "world-cup-tui-${VERSION}-aarch64-apple-darwin.tar.gz"
+ARCHIVE="world-cup-tui-${VERSION}-aarch64-apple-darwin.tar.gz"
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/${ARCHIVE}"
+tar xzf "${ARCHIVE}"
 mkdir -p "${HOME}/.local/bin"
 install -m 755 world-cup-tui "${HOME}/.local/bin/"
+rm "${ARCHIVE}"
+world-cup-tui --version
 world-cup-tui
 ```
 
@@ -67,10 +80,13 @@ world-cup-tui
 
 ```bash
 VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
-curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-x86_64-apple-darwin.tar.gz"
-tar xzf "world-cup-tui-${VERSION}-x86_64-apple-darwin.tar.gz"
+ARCHIVE="world-cup-tui-${VERSION}-x86_64-apple-darwin.tar.gz"
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/${ARCHIVE}"
+tar xzf "${ARCHIVE}"
 mkdir -p "${HOME}/.local/bin"
 install -m 755 world-cup-tui "${HOME}/.local/bin/"
+rm "${ARCHIVE}"
+world-cup-tui --version
 world-cup-tui
 ```
 
@@ -154,6 +170,18 @@ To regenerate the README captures (ideally during a live match), install [vhs](h
 
 ```bash
 vhs assets/demo.tape
+```
+
+## Share
+
+Copy-paste for posts, chats or newsletters:
+
+```text
+world-cup-tui — terminal UI for the FIFA World Cup 2026
+Live scores, goals, cards, substitutions; load past matchdays with `p`.
+
+https://github.com/alsvader/world-cup-tui
+Install: one copy-paste block per OS in the README (macOS / Linux x86_64).
 ```
 
 ## License
