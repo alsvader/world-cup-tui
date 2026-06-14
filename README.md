@@ -31,24 +31,50 @@ A truecolor terminal is recommended for the exact design-system palette; any ter
 
 ### Prebuilt binary (recommended)
 
-Download the archive for your platform from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releases), then install the binary somewhere on your `PATH`:
+Download from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releases) or use one of the snippets below. Each script resolves `VERSION` from the latest release automatically.
 
-| Platform | Archive |
+| Platform | Archive suffix |
 |---|---|
-| Linux (x86_64) | `world-cup-tui-*-x86_64-unknown-linux-gnu.tar.gz` |
-| macOS (Apple Silicon) | `world-cup-tui-*-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `world-cup-tui-*-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `x86_64-unknown-linux-gnu.tar.gz` |
+| macOS (Apple Silicon) | `aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `x86_64-apple-darwin.tar.gz` |
+
+#### Linux (x86_64)
 
 ```bash
-# Example: Linux x86_64 — replace VERSION with the release tag (e.g. 0.1.0)
-VERSION=0.1.0
+VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
 curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 tar xzf "world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-install -m 755 world-cup-tui "${HOME}/.local/bin"
+mkdir -p "${HOME}/.local/bin"
+install -m 755 world-cup-tui "${HOME}/.local/bin/"
 world-cup-tui
 ```
 
-On macOS, use the matching archive name and the same `install` line (`~/.local/bin` works if it is on your `PATH`; `/usr/local/bin` is another common choice).
+Ensure `~/.local/bin` is on your `PATH` (common on Linux desktops; add `export PATH="${HOME}/.local/bin:${PATH}"` to your shell rc if needed).
+
+#### macOS (Apple Silicon)
+
+```bash
+VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-aarch64-apple-darwin.tar.gz"
+tar xzf "world-cup-tui-${VERSION}-aarch64-apple-darwin.tar.gz"
+mkdir -p "${HOME}/.local/bin"
+install -m 755 world-cup-tui "${HOME}/.local/bin/"
+world-cup-tui
+```
+
+#### macOS (Intel)
+
+```bash
+VERSION=$(curl -s https://api.github.com/repos/alsvader/world-cup-tui/releases/latest | grep '"tag_name":' | cut -d '"' -f4 | sed 's/^v//')
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-x86_64-apple-darwin.tar.gz"
+tar xzf "world-cup-tui-${VERSION}-x86_64-apple-darwin.tar.gz"
+mkdir -p "${HOME}/.local/bin"
+install -m 755 world-cup-tui "${HOME}/.local/bin/"
+world-cup-tui
+```
+
+On macOS, add `export PATH="${HOME}/.local/bin:${PATH}"` to `~/.zshrc` if `world-cup-tui` is not found. `/usr/local/bin` is an alternative install target if you prefer.
 
 ### Build from source
 
