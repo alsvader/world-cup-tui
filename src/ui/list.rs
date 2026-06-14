@@ -146,7 +146,8 @@ fn render_finished(frame: &mut Frame, app: &mut App, rows: &[(usize, usize)], ar
             " AÚN NINGUNO"
         };
         frame.render_widget(
-            Paragraph::new(Span::styled(msg, theme::muted())).block(panel(" ✓ FINALIZADOS ", title_right)),
+            Paragraph::new(Span::styled(msg, theme::muted()))
+                .block(panel(" ✓ FINALIZADOS ", title_right)),
             area,
         );
         return;

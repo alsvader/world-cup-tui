@@ -83,18 +83,18 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled("SIN CONEXIÓN — REINTENTANDO · ", theme::error()),
         );
     }
-  let width = area.width as usize;
-  let keys_w = keys.chars().count();
-  // Reservar espacio para las teclas; el estado de red no debe tapar [P].
-  let keys_cols = keys_w.min(width).max(1);
-  let right_cols = width.saturating_sub(keys_cols);
-  let [left, right] = Layout::horizontal([
-      Constraint::Length(keys_cols as u16),
-      Constraint::Length(right_cols as u16),
-  ])
-  .areas(area);
-  frame.render_widget(Paragraph::new(Span::styled(keys, theme::muted())), left);
-  if right_cols > 0 {
-      frame.render_widget(Paragraph::new(Line::from(right_spans)), right);
-  }
+    let width = area.width as usize;
+    let keys_w = keys.chars().count();
+    // Reservar espacio para las teclas; el estado de red no debe tapar [P].
+    let keys_cols = keys_w.min(width).max(1);
+    let right_cols = width.saturating_sub(keys_cols);
+    let [left, right] = Layout::horizontal([
+        Constraint::Length(keys_cols as u16),
+        Constraint::Length(right_cols as u16),
+    ])
+    .areas(area);
+    frame.render_widget(Paragraph::new(Span::styled(keys, theme::muted())), left);
+    if right_cols > 0 {
+        frame.render_widget(Paragraph::new(Line::from(right_spans)), right);
+    }
 }
