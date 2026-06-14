@@ -1,6 +1,6 @@
-use chrono::{Days, Local};
+use chrono::{DateTime, Days, Local, NaiveDate, TimeZone, Utc};
 use world_cup_tui::espn::{filter_relevant, parse_scoreboard, parse_summary};
-use world_cup_tui::model::{CardColor, KeyEventKind, MatchStatus};
+use world_cup_tui::model::{CardColor, KeyEventKind, Match, MatchStatus, Team};
 
 const SCOREBOARD: &str = include_str!("fixtures/scoreboard.json");
 const SUMMARY: &str = include_str!("fixtures/summary.json");
@@ -96,29 +96,65 @@ fn events_are_chronological() {
     assert_eq!(keys, sorted);
 }
 
+/// Kickoff a mediodía en la zona local del test runner; alineado con cómo
+/// `filter_relevant` clasifica fechas (`with_timezone(&Local)`).
+fn kickoff_local(date: NaiveDate) -> DateTime<Utc> {
+    Local
+        .from_local_datetime(&date.and_hms_opt(12, 0, 0).unwrap())
+        .single()
+        .expect("fecha local válida")
+        .with_timezone(&Utc)
+}
+
+fn sample_finished_match(kickoff: DateTime<Utc>) -> Match {
+    Match {
+        id: "test".into(),
+        kickoff: Some(kickoff),
+        home: Team {
+            name: "A".into(),
+            abbrev: "A".into(),
+            score: Some(1),
+        },
+        away: Team {
+            name: "B".into(),
+            abbrev: "B".into(),
+            score: Some(0),
+        },
+        status: MatchStatus::Finished,
+        clock: None,
+        status_detail: "FT".into(),
+        venue: None,
+        city: None,
+    }
+}
+
 #[test]
 fn filter_keeps_today_and_yesterdays_finished() {
-    // El fixture es del 11 jun 2026 (partidos finalizados).
-    let matches = parse_scoreboard(SCOREBOARD).unwrap();
-    let fixture_day = matches[0]
-        .kickoff
-        .unwrap()
-        .with_timezone(&Local)
-        .date_naive();
+    let match_day = NaiveDate::from_ymd_opt(2026, 6, 11).unwrap();
+    let next_day = match_day.checked_add_days(Days::new(1)).unwrap();
+    let later = match_day.checked_add_days(Days::new(2)).unwrap();
 
-    // Vistos como "hoy": se conservan ambos.
-    assert_eq!(filter_relevant(matches.clone(), fixture_day).len(), 2);
-    // Vistos como "ayer": finalizados, se conservan ambos.
-    let next_day = fixture_day.checked_add_days(Days::new(1)).unwrap();
-    assert_eq!(filter_relevant(matches.clone(), next_day).len(), 2);
+    let finished = vec![
+        sample_finished_match(kickoff_local(match_day)),
+        sample_finished_match(kickoff_local(match_day)),
+    ];
+
+    // Mismo día local: se conservan ambos.
+    assert_eq!(filter_relevant(finished.clone(), match_day).len(), 2);
+    // Al día siguiente: finalizados de ayer, se conservan ambos.
+    assert_eq!(filter_relevant(finished.clone(), next_day).len(), 2);
     // Dos días después: fuera.
-    let later = fixture_day.checked_add_days(Days::new(2)).unwrap();
-    assert_eq!(filter_relevant(matches.clone(), later).len(), 0);
-    // Un partido programado de ayer (estado forzado) no se conserva.
-    let mut scheduled = matches.clone();
-    for m in &mut scheduled {
-        m.status = MatchStatus::Scheduled;
-    }
+    assert_eq!(filter_relevant(finished.clone(), later).len(), 0);
+
+    // Programados de ayer no se conservan.
+    let scheduled = finished
+        .iter()
+        .map(|m| {
+            let mut m = m.clone();
+            m.status = MatchStatus::Scheduled;
+            m
+        })
+        .collect();
     assert_eq!(filter_relevant(scheduled, next_day).len(), 0);
 }
 
