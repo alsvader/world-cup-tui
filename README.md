@@ -1,6 +1,6 @@
 # world-cup-tui
 
-[![CI](https://github.com/OWNER/world-cup-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/world-cup-tui/actions/workflows/ci.yml)
+[![CI](https://github.com/alsvader/world-cup-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/alsvader/world-cup-tui/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
 
@@ -30,7 +30,7 @@ A terminal UI for following the **FIFA World Cup 2026** live: scores, match cloc
 Requires [Rust](https://rustup.rs) (stable). A truecolor terminal is recommended for the exact design-system palette; any terminal works.
 
 ```bash
-git clone https://github.com/OWNER/world-cup-tui.git
+git clone https://github.com/alsvader/world-cup-tui.git
 cd world-cup-tui
 cargo build --release
 ./target/release/world-cup-tui
