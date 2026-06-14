@@ -27,7 +27,32 @@ A terminal UI for following the **FIFA World Cup 2026** live: scores, match cloc
 
 ## Installation
 
-Requires [Rust](https://rustup.rs) (stable). A truecolor terminal is recommended for the exact design-system palette; any terminal works.
+A truecolor terminal is recommended for the exact design-system palette; any terminal works.
+
+### Prebuilt binary (recommended)
+
+Download the archive for your platform from [GitHub Releases](https://github.com/alsvader/world-cup-tui/releases), then install the binary somewhere on your `PATH`:
+
+| Platform | Archive |
+|---|---|
+| Linux (x86_64) | `world-cup-tui-*-x86_64-unknown-linux-gnu.tar.gz` |
+| macOS (Apple Silicon) | `world-cup-tui-*-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `world-cup-tui-*-x86_64-apple-darwin.tar.gz` |
+
+```bash
+# Example: Linux x86_64 — replace VERSION with the release tag (e.g. 0.1.0)
+VERSION=0.1.0
+curl -LO "https://github.com/alsvader/world-cup-tui/releases/download/v${VERSION}/world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+tar xzf "world-cup-tui-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+install -m 755 world-cup-tui "${HOME}/.local/bin"
+world-cup-tui
+```
+
+On macOS, use the matching archive name and the same `install` line (`~/.local/bin` works if it is on your `PATH`; `/usr/local/bin` is another common choice).
+
+### Build from source
+
+Requires [Rust](https://rustup.rs) (stable).
 
 ```bash
 git clone https://github.com/alsvader/world-cup-tui.git
@@ -35,6 +60,8 @@ cd world-cup-tui
 cargo build --release
 ./target/release/world-cup-tui
 ```
+
+`cargo install --path .` installs `world-cup-tui` into `~/.cargo/bin`.
 
 ## Usage
 
