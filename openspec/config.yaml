@@ -1,20 +1,43 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Producto: TUI en terminal para seguir el Mundial 2026 en vivo (marcador, minuto,
+  goles, tarjetas, sustituciones) con auto-refresh. Herramienta de torneo (~6 semanas);
+  se prioriza velocidad de entrega y robustez de lectura sobre generalidad.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Tech stack:
+  - Rust (edition 2024), binario `world-cup-tui`
+  - ratatui + crossterm (TUI), tokio (async runtime), reqwest (HTTP)
+  - serde/serde_json, anyhow, chrono, unicode-width
+
+  Arquitectura (src/):
+  - main.rs: setup de terminal, event loop, poller tokio (mpsc)
+  - app.rs: estado de la app + lógica pura (sorting, columnas, scroll)
+  - espn.rs: capa anti-corrupción sobre la API no documentada de ESPN
+  - model.rs: tipos de dominio garantizados (Match, KeyEvent, ...)
+  - flags.rs: mapa FIFA→ISO + política de activación de emoji
+  - ui/: vistas ratatui; todos los colores en theme.rs (derivados de DESIGN.md)
+
+  Decisiones de diseño cerradas:
+  1. La UI NUNCA hace I/O. Networking en task tokio; datos normalizados por canal mpsc.
+  2. JSON de ESPN hostil: deserialización permisiva (Option + defaults); modelo interno
+     garantizado inmediatamente después; tests con fixtures reales.
+  3. Polling escalonado: scoreboard ~30s en vivo, detalle ~15s, ~120s sin partidos live.
+  4. Degradación elegante ante errores de red: conservar últimos datos válidos + timestamp.
+  5. Banderas: trigramas FIFA como base; emoji con progressive enhancement (flags.rs).
+     Inglaterra, Escocia y Gales siempre trigramas. Override: --flags, --no-flags, WCTUI_FLAGS.
+  6. Interfaz en español. Sin notificaciones del sistema en v1.
+
+  Fuente de datos: ESPN API no documentada (site.api.espn.com, liga fifa.world).
+  Sin API key; puede cambiar sin aviso. No afiliado a ESPN ni FIFA.
+
+  UI / diseño:
+  - DESIGN.md (Google Stitch) es la fuente de verdad visual.
+  - Estética Bloomberg-terminal: densidad alta, sin sombras ni bordes redondeados,
+    separadores 1px, labels en mayúsculas, JetBrains Mono para datos, Inter para body.
+  - Colores semánticos: live (verde), upcoming (azul), finished (gris), goals (esmeralda).
+
+  Capabilities en openspec/specs/: match-data, match-list-ui, match-detail-ui,
+  live-refresh, country-flags.
+
+  Calidad: cargo test, cargo clippy --all-targets -- -D warnings, cargo fmt --check.
