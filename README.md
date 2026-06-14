@@ -6,7 +6,7 @@
 
 A terminal UI for following the **FIFA World Cup 2026** live: scores, match clock, goal scorers, yellow/red cards and substitutions — auto-refreshing while you work, in a Bloomberg-terminal-inspired dashboard.
 
-![demo](assets/demo.gif)
+![demo](assets/demo.gif?v=2)
 
 *El demo muestra el dashboard, la carga de jornadas anteriores en FINALIZADOS con `p`, navegación en la lista ampliada y la vista de detalle.*
 
@@ -21,7 +21,7 @@ A terminal UI for following the **FIFA World Cup 2026** live: scores, match cloc
 
 | Dashboard | Match detail |
 |---|---|
-| ![dashboard](assets/dashboard.png) | ![detail](assets/detail.png) |
+| ![dashboard](assets/dashboard.png?v=2) | ![detail](assets/detail.png?v=2) |
 
 *Screenshots show the universal text mode (works on any terminal). On iTerm2, kitty, Ghostty, WezTerm or Apple Terminal you get flag emoji and event icons automatically.*
 
